@@ -8,22 +8,14 @@ import router from "./routes/index.route.js";
 const app = express();
 
 //Database connection 
-connectDB();
+//connectDB();
  
 //middlewares 
+app.disable('x-powered-by');
 app.use(express.json({ limit: '10mb' }));
 
 
 //Routes
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    version: '1.0.0'
-  });
-});
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -31,7 +23,7 @@ app.get('/', (req, res) => {
     success: true,
     message: 'Secure Node.js Backend API',
     version: '1.0.0',
-    environment: process.env.NODE_ENV,
+    environment: process.env.NODE_ENV ?? 'development',
     timestamp: new Date().toISOString(),
     documentation: '/api/info'
   });
@@ -44,8 +36,16 @@ app.use('/api', router);
 const PORT = process.env.PORT || 12000;
 const HOST = process.env.HOST || 'localhost';
 
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
-});
+(async () => {
+  try {
+    await connectDB();
+    const server = app.listen(PORT, HOST, () => {
+      console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
+})();
 
 export default app 
