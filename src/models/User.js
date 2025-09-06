@@ -3,33 +3,33 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'İsim gereklidir'],
+    required: [true, 'Name is required'],
     trim: true,
-    minlength: [2, 'İsim en az 2 karakter olmalıdır'],
-    maxlength: [50, 'İsim en fazla 50 karakter olabilir'],
-    match: [/^[a-zA-ZğüşıöçĞÜŞİÖÇ0-9\s]+$/, 'İsim sadece harf, rakam ve boşluk içerebilir']
+    minlength: [2, 'Name must be at least 2 characters'],
+    maxlength: [50, 'Name must be at most 50 characters'],
+    match: [/^[a-zA-ZğüşıöçĞÜŞİÖÇ0-9\s]+$/, 'Name can only contain letters, numbers, and spaces']
   },
   email: {
     type: String,
-    required: [true, 'Email gereklidir'],
+    required: [true, 'Email is required'],
     unique: true,
     lowercase: true,
     trim: true,
-    maxlength: [100, 'Email en fazla 100 karakter olabilir'],
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Geçerli bir email adresi giriniz']
+    maxlength: [100, 'Email must be at most 100 characters'],
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email address']
   },
   password: {
     type: String,
-    required: [true, 'Şifre gereklidir'],
-    minlength: [8, 'Şifre en az 8 karakter olmalıdır'],
-    maxlength: [128, 'Şifre en fazla 128 karakter olabilir'],
-    select: false // Varsayılan olarak şifreyi döndürme
+    required: [true, 'Password is required'],
+    minlength: [8, 'Password must be at least 8 characters'],
+    maxlength: [128, 'Password must be at most 128 characters'],
+    select: false // Do not return password by default
   },
   role: {
     type: String,
     enum: {
       values: ['user', 'admin', 'moderator'],
-      message: 'Rol user, admin veya moderator olmalıdır'
+      message: 'Role must be either user, admin, or moderator'
     },
     default: 'user'
   },
@@ -48,7 +48,7 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     trim: true,
-    match: [/^[0-9+\-\s()]+$/, 'Geçerli bir telefon numarası giriniz']
+    match: [/^[0-9+\-\s()]+$/, 'Please enter a valid phone number']
   },
   dateOfBirth: {
     type: Date,
@@ -56,7 +56,7 @@ const userSchema = new mongoose.Schema({
       validator: function(value) {
         return !value || value < new Date();
       },
-      message: 'Doğum tarihi gelecekte olamaz'
+      message: 'Date of birth cannot be in the future'
     }
   },
   address: {
@@ -83,20 +83,21 @@ const userSchema = new mongoose.Schema({
       push: { type: Boolean, default: true }
     }
   },
-  // Güvenlik alanları
+  // Security fields
   passwordChangedAt: Date,
-  passwordResetToken: String,
-  passwordResetExpires: Date,
-  emailVerificationToken: String,
-  emailVerificationExpires: Date,
+  passwordResetToken: { type: String, select: false },
+  passwordResetExpires: { type: Date, select: false },
+  emailVerificationToken: { type: String, select: false },
+  emailVerificationExpires: { type: Date, select: false },
+
   loginAttempts: {
     type: Number,
     default: 0
   },
   lockUntil: Date,
   lastLogin: Date,
-  lastLoginIP: String,
-  twoFactorSecret: String,
+  lastLoginIP: { type: String, select: false },
+  twoFactorSecret: { type: String, select: false },
   twoFactorEnabled: {
     type: Boolean,
     default: false
