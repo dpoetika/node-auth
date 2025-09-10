@@ -1,4 +1,5 @@
 import express from "express"
+import authRoutes from "./auth.route.js"
 const router = express.Router();
 
 const VERSION = process.env.APP_VERSION ?? process.env.npm_package_version ?? '1.0.0';
@@ -35,7 +36,12 @@ router.get('/info', (req, res) => {
 });
 
 // Route mounting
-//router.use('/auth', authRoutes);
+router.use('/auth', authRoutes);
+router.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `${req.originalUrl} endpoint not found`
+  });
+});
 
- 
 export default router;
