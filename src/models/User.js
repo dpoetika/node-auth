@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
-
+import jwt from "jsonwebtoken"
+import bcrypt from "bcryptjs";
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -116,6 +117,97 @@ const userSchema = new mongoose.Schema({
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
+
+// Pre-save middleware
+userSchema.pre('save', async function(next) {
+  // Şifre değiştirilmediyse devam et
+  if (!this.isModified('password')) return next();
+
+  try {
+    // Şifreyi hash'le
+    const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12;
+    this.password = await bcrypt.hash(this.password, saltRounds);
+
+    // Şifre değiştirilme zamanını kaydet
+    if (!this.isNew) {
+      this.passwordChangedAt = new Date();
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+userSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
+
+
+// Instance methods
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+userSchema.methods.incLoginAttempts = function() {
+  // Eğer önceki kilit süresi geçmişse, sayacı sıfırla
+  if (this.lockUntil && this.lockUntil < Date.now()) {
+    return this.updateOne({
+      $unset: { lockUntil: 1 },
+      $set: { loginAttempts: 1 }
+    });
+  }
+  
+  const updates = { $inc: { loginAttempts: 1 } };
+  const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5;
+  const lockTime = parseInt(process.env.LOCKOUT_TIME) * 60 * 1000 || 30 * 60 * 1000; // 30 dakika
+  
+  // Maksimum deneme sayısına ulaşıldıysa hesabı kilitle
+  if (this.loginAttempts + 1 >= maxAttempts && !this.isLocked) {
+    updates.$set = { lockUntil: Date.now() + lockTime };
+  }
+  
+  return this.updateOne(updates);
+};
+
+userSchema.methods.resetLoginAttempts = function() {
+  return this.updateOne({
+    $unset: { loginAttempts: 1, lockUntil: 1 }
+  });
+};
+
+userSchema.methods.updateLastLogin = function(ip) {
+  return this.updateOne({
+    $set: {
+      lastLogin: new Date(),
+      lastLoginIP: ip
+    }
+  });
+};
+
+
+userSchema.methods.generateAuthToken = function() {
+  const payload = {
+    id: this._id,
+    email: this.email,
+    role: this.role
+  };
+
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '7d'
+  });
+};
+
+
+userSchema.statics.findByEmail = function(email) {
+  return this.findOne({ email: email.toLowerCase() });
+};
+
 
 
 export default mongoose.model('User', userSchema);

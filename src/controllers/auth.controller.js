@@ -1,12 +1,51 @@
-const User = require('../models/User');
+import User from '../models/User.js';
+
+const sendTokenResponse = (user, statusCode, res) => {
+  const token = user.generateAuthToken();
+  const options = { 
+    expires: new Date(
+      Date.now() + (parseInt(process.env.JWT_COOKIE_EXPIRE) || 7) * 24 * 60 * 60 * 1000
+    ),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  };
+
+  res.status(statusCode)
+    .cookie('token', token, options)
+    .json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        isEmailVerified: user.isEmailVerified,
+        avatar: user.avatar,
+        preferences: user.preferences,
+        lastLogin: user.lastLogin
+      }
+    });
+};
+
+
 
 // @desc    Insert user
 // @route   POST /api/auth/register
 // @access  Public
-const register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
-
+    
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide name, email, password.'
+      });
+    }
+    
     // Check if user exist
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
@@ -25,7 +64,7 @@ const register = async (req, res) => {
     });
 
     // Email verification token created
-    const verificationToken = user.generateEmailVerificationToken();
+    //const verificationToken = user.generateEmailVerificationToken();
     await user.save({ validateBeforeSave: false });
 
     console.log(`New user registered: ${email}`, {
@@ -40,7 +79,7 @@ const register = async (req, res) => {
     sendTokenResponse(user, 201, res);
   } catch (error) {
     console.log('Registration error:', error);
-    
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -67,7 +106,7 @@ const register = async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-const login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -79,12 +118,12 @@ const login = async (req, res) => {
         ip: req.clientIP,
         userAgent: req.headers['user-agent']
       });
-      
+
       // Brute force sayacını artır
       if (req.incrementLoginAttempts) {
         req.incrementLoginAttempts();
       }
-      
+
       return res.status(401).json({
         success: false,
         error: 'Geçersiz email veya şifre'
@@ -98,7 +137,7 @@ const login = async (req, res) => {
         ip: req.clientIP,
         userAgent: req.headers['user-agent']
       });
-      
+
       return res.status(423).json({
         success: false,
         error: 'Hesap geçici olarak kilitlenmiştir. Lütfen daha sonra tekrar deneyin.'
@@ -112,7 +151,7 @@ const login = async (req, res) => {
         ip: req.clientIP,
         userAgent: req.headers['user-agent']
       });
-      
+
       return res.status(401).json({
         success: false,
         error: 'Hesabınız deaktif edilmiştir'
@@ -131,12 +170,12 @@ const login = async (req, res) => {
 
       // Başarısız giriş denemesini kaydet
       await user.incLoginAttempts();
-      
+
       // Brute force sayacını artır
       if (req.incrementLoginAttempts) {
         req.incrementLoginAttempts();
       }
-      
+
       return res.status(401).json({
         success: false,
         error: 'Geçersiz email veya şifre'
@@ -146,7 +185,7 @@ const login = async (req, res) => {
     // Başarılı giriş
     await user.resetLoginAttempts();
     await user.updateLastLogin(req.clientIP);
-    
+
     // Brute force sayacını sıfırla
     if (req.resetLoginAttempts) {
       req.resetLoginAttempts();
@@ -167,6 +206,3 @@ const login = async (req, res) => {
     });
   }
 };
-
-
-export default {register,login};

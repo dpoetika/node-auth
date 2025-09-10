@@ -1,26 +1,19 @@
 import express from "express"
-const {
+import {
   register,
   login
-} = require('../controllers/authController');
+} from '../controllers/auth.controller.js';
 
 
-const router = express.Router();
+const authRoutes = express.Router();
 
 // Public routes
-router.post('/register',
-    conditionalAuthLimiter,
-    sanitizeInput,
-    validateUserRegistration,
+authRoutes.post('/register',
     register
 );
 
-router.post('/login',
-    conditionalAuthLimiter,
-    conditionalBruteForce,
-    sanitizeInput,
-    validateUserLogin,
+authRoutes.post('/login',
     login
 );
 
-export default router
+export default authRoutes
