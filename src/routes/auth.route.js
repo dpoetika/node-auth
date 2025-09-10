@@ -3,7 +3,10 @@ import {
   register,
   login,
   getMe,
-  logout
+  logout,
+  forgotPassword,
+  resetPassword,
+  verifyEmail
 } from '../controllers/auth.controller.js';
 import { authenticate } from "../middlewares/auth.middleware.js";
 
@@ -11,11 +14,23 @@ const authRoutes = express.Router();
 
 // Public routes
 authRoutes.post('/register',
-    register
+  register
 );
 
 authRoutes.post('/login',
-    login
+  login
+);
+
+authRoutes.post('/forgot-password',
+  forgotPassword
+);
+
+authRoutes.put('/reset-password/:token',
+  resetPassword
+);
+
+authRoutes.get('/verify-email/:token',
+  verifyEmail
 );
 
 // Protected routes

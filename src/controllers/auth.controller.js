@@ -64,7 +64,8 @@ export const register = async (req, res) => {
     });
 
     // Email verification token created
-    //const verificationToken = user.generateEmailVerificationToken();
+    const verificationToken = user.generateEmailVerificationToken();
+    console.log(`Email verification token : ${verificationToken}`)
     await user.save({ validateBeforeSave: false });
 
     console.log(`New user registered: ${email}`, {
@@ -83,7 +84,7 @@ export const register = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        error: 'Bu email adresi zaten kullanılıyor'
+        error: 'This email is in use'
       });
     }
 
@@ -91,14 +92,14 @@ export const register = async (req, res) => {
       const messages = Object.values(error.errors).map(val => val.message);
       return res.status(400).json({
         success: false,
-        error: 'Geçersiz veri',
+        error: 'Invalid data',
         details: messages
       });
     }
 
     res.status(500).json({
       success: false,
-      error: 'Sunucu hatası'
+      error: 'Server Error'
     });
   }
 };
@@ -261,4 +262,128 @@ export const logout = (req, res) => {
     success: true,
     message: 'Başarıyla çıkış yapıldı'
   });
+};
+
+// @desc    Password Reset request
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findByEmail(email);
+
+    if (!user) {
+      // For security user is even not exist send succes message
+      return res.status(200).json({
+        success: true,
+        message: "A password reset link has been sent to your email address."
+      });
+    }
+
+    // Create password reset token
+    const resetToken = user.generatePasswordResetToken();
+    console.log(`Reset password token : ${resetToken}`)
+    await user.save({ validateBeforeSave: false });
+
+    console.log(`Password reset requested: ${email}`, {
+      userId: user._id,
+      ip: req.clientIP
+    });
+
+    // TODO: Send mail to reset password
+    // await sendPasswordResetEmail(user.email, resetToken);
+
+    res.status(200).json({
+      success: true,
+      message: "A password reset link has been sent to your email address."
+    });
+  } catch (error) {
+    console.log('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+};
+
+
+// @desc    Reset password
+// @route   PUT /api/auth/reset-password/:token
+// @access  Public
+export const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    // Find user with token
+    const user = await User.findByPasswordResetToken(token);
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or expired token'
+      });
+    }
+
+    // Reset password and token
+    user.password = password;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    console.log(`Password reset completed: ${user.email}`, {
+      userId: user._id,
+      ip: req.clientIP
+    });
+
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    console.log('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+};
+
+// @desc    Verify email
+// @route   GET /api/auth/verify-email/:token
+// @access  Public
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Find user by token
+    const user = await User.findByEmailVerificationToken(token);
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or expired token'
+      });
+    }
+
+    // Mark email as Verified
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    console.log(`Email verified: ${user.email}`, {
+      userId: user._id,
+      ip: req.clientIP
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'The email has been marked as verified'
+    });
+  } catch (error) {
+    console.log('Verify email error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
 };

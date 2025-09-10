@@ -37,6 +37,11 @@ router.get('/info', (req, res) => {
 
 // Route mounting
 router.use('/auth', authRoutes);
+router.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `${req.originalUrl} endpoint not found`
+  });
+});
 
- 
 export default router;
