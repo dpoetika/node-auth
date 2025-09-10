@@ -110,7 +110,7 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Kullanıcıyı bul (şifre ile birlikte)
+    // Find user (with password)
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
 
     if (!user) {
@@ -119,18 +119,18 @@ export const login = async (req, res) => {
         userAgent: req.headers['user-agent']
       });
 
-      // Brute force sayacını artır
+      // Increase brute force count
       if (req.incrementLoginAttempts) {
         req.incrementLoginAttempts();
       }
 
       return res.status(401).json({
         success: false,
-        error: 'Geçersiz email veya şifre'
+        error: 'Invalid email or password'
       });
     }
 
-    // Hesap kilitli mi kontrol et
+    // Check if account is locked
     if (user.isLocked) {
       console.log(`Login attempt on locked account: ${email}`, {
         userId: user._id,
@@ -140,11 +140,11 @@ export const login = async (req, res) => {
 
       return res.status(423).json({
         success: false,
-        error: 'Hesap geçici olarak kilitlenmiştir. Lütfen daha sonra tekrar deneyin.'
+        error: 'Account temporarily locked. Try again later.'
       });
     }
 
-    // Hesap aktif mi kontrol et
+    // Check if account is active
     if (!user.isActive) {
       console.log(`Login attempt on inactive account: ${email}`, {
         userId: user._id,
@@ -154,11 +154,11 @@ export const login = async (req, res) => {
 
       return res.status(401).json({
         success: false,
-        error: 'Hesabınız deaktif edilmiştir'
+        error: 'Account is deactivated'
       });
     }
 
-    // Şifre doğru mu kontrol et
+    // Check if password is correct
     const isPasswordCorrect = await user.comparePassword(password);
 
     if (!isPasswordCorrect) {
@@ -168,25 +168,25 @@ export const login = async (req, res) => {
         userAgent: req.headers['user-agent']
       });
 
-      // Başarısız giriş denemesini kaydet
+      // Save failed login attempt
       await user.incLoginAttempts();
 
-      // Brute force sayacını artır
+      // Increase brute force count
       if (req.incrementLoginAttempts) {
         req.incrementLoginAttempts();
       }
 
       return res.status(401).json({
         success: false,
-        error: 'Geçersiz email veya şifre'
+        error: 'Invalid email or password'
       });
     }
 
-    // Başarılı giriş
+    // Successful login
     await user.resetLoginAttempts();
     await user.updateLastLogin(req.clientIP);
 
-    // Brute force sayacını sıfırla
+    // Reset brute force count
     if (req.resetLoginAttempts) {
       req.resetLoginAttempts();
     }
@@ -202,7 +202,7 @@ export const login = async (req, res) => {
     console.log('Login error:', error);
     res.status(500).json({
       success: false,
-      error: 'Sunucu hatası'
+      error: 'Server Error'
     });
   }
 };
