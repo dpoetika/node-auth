@@ -206,3 +206,59 @@ export const login = async (req, res) => {
     });
   }
 };
+
+// @desc    Get current user info
+// @route   GET /api/auth/me
+// @access  Private
+export const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        isEmailVerified: user.isEmailVerified,
+        avatar: user.avatar,
+        phone: user.phone,
+        dateOfBirth: user.dateOfBirth,
+        address: user.address,
+        preferences: user.preferences,
+        lastLogin: user.lastLogin,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      }
+    });
+  } catch (error) {
+    console.log('Get me error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server Error'
+    });
+  }
+};
+
+
+// @desc    User Logout
+// @route   POST /api/auth/logout
+// @access  Private
+export const logout = (req, res) => {
+  res.cookie('token', 'none', {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true
+  });
+
+  console.log(`User logged out: ${req.user.email}`, {
+    userId: req.user._id,
+    ip: req.clientIP
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Başarıyla çıkış yapıldı'
+  });
+};
