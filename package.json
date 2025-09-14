@@ -3,6 +3,9 @@
   "description": "Secure Node.js authentication API",
   "version": "1.0.0",
   "main": "index.js",
+  "engines": {
+    "node": ">=18.18"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"

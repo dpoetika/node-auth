@@ -39,12 +39,16 @@ export const authenticate = async (req, res, next) => {
       if (!user.isActive) {
         return res.status(401).json({
           success: false,
-          error: 'Hesabınız deaktif edilmiştir'
+          error: 'Account is deactivated'
         });
       }
 
       // Check if token created after password change
-      if (user.passwordChangedAt && decoded.iat < user.passwordChangedAt.getTime() / 1000) {
+      if (
+        user.passwordChangedAt &&
+        decoded.iat &&
+        decoded.iat < Math.floor(user.passwordChangedAt.getTime() / 1000)
+      ) {
         return res.status(401).json({
           success: false,
           error: 'Password changed. Please login'

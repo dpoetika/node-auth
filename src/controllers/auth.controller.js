@@ -110,6 +110,9 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
 
     // Find user (with password)
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
@@ -213,8 +216,7 @@ export const login = async (req, res) => {
 // @access  Private
 export const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-
+    const user = req.user
     res.status(200).json({
       success: true,
       user: {
@@ -260,7 +262,7 @@ export const logout = (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: 'Başarıyla çıkış yapıldı'
+    message: 'Logged out successfully'
   });
 };
 
@@ -315,6 +317,12 @@ export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
+    if (!password || password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 8 characters.'
+      });
+    }
 
     // Find user with token
     const user = await User.findByPasswordResetToken(token);

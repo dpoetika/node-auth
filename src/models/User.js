@@ -194,7 +194,7 @@ userSchema.methods.updateLastLogin = function(ip) {
 
 userSchema.methods.generateAuthToken = function() {
   const payload = {
-    id: this._id,
+    id: String(this._id),
     email: this.email,
     role: this.role
   };
@@ -212,8 +212,7 @@ userSchema.methods.generatePasswordResetToken = function() {
     .update(resetToken)
     .digest('hex');
   
-  this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 dakika
-  
+  this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
   return resetToken;
 };
 
@@ -225,7 +224,7 @@ userSchema.methods.generateEmailVerificationToken = function() {
     .update(verificationToken)
     .digest('hex');
   
-  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 saat
+  this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   
   return verificationToken;
 };
@@ -262,7 +261,5 @@ userSchema.statics.findByEmailVerificationToken = function(token) {
     emailVerificationExpires: { $gt: Date.now() }
   });
 };
-
-
 
 export default mongoose.model('User', userSchema);
