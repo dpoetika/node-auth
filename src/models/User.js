@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
-
+import jwt from "jsonwebtoken"
+import bcrypt from "bcryptjs";
+import crypto from 'crypto';
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -117,5 +119,147 @@ const userSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
+// Pre-save middleware
+userSchema.pre('save', async function(next) {
+  // Şifre değiştirilmediyse devam et
+  if (!this.isModified('password')) return next();
+
+  try {
+    // Şifreyi hash'le
+    const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12;
+    this.password = await bcrypt.hash(this.password, saltRounds);
+
+    // Şifre değiştirilme zamanını kaydet
+    if (!this.isNew) {
+      this.passwordChangedAt = new Date();
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+userSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
+
+
+// Instance methods
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+userSchema.methods.incLoginAttempts = function() {
+  // Eğer önceki kilit süresi geçmişse, sayacı sıfırla
+  if (this.lockUntil && this.lockUntil < Date.now()) {
+    return this.updateOne({
+      $unset: { lockUntil: 1 },
+      $set: { loginAttempts: 1 }
+    });
+  }
+  
+  const updates = { $inc: { loginAttempts: 1 } };
+  const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5;
+  const lockTime = parseInt(process.env.LOCKOUT_TIME) * 60 * 1000 || 30 * 60 * 1000; // 30 dakika
+  
+  // Lock user if attempt count reach max attempts
+  if (this.loginAttempts + 1 >= maxAttempts && !this.lockUntil) {
+    updates.$set = { lockUntil: Date.now() + lockTime };
+  }
+  
+  return this.updateOne(updates);
+};
+
+userSchema.methods.resetLoginAttempts = function() {
+  return this.updateOne({
+    $unset: { loginAttempts: 1, lockUntil: 1 }
+  });
+};
+
+userSchema.methods.updateLastLogin = function(ip) {
+  return this.updateOne({
+    $set: {
+      lastLogin: new Date(),
+      lastLoginIP: ip
+    }
+  });
+};
+
+
+userSchema.methods.generateAuthToken = function() {
+  const payload = {
+    id: String(this._id),
+    email: this.email,
+    role: this.role
+  };
+
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '7d'
+  });
+};
+
+userSchema.methods.generatePasswordResetToken = function() {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+  
+  this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+  return resetToken;
+};
+
+userSchema.methods.generateEmailVerificationToken = function() {
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  
+  this.emailVerificationToken = crypto
+    .createHash('sha256')
+    .update(verificationToken)
+    .digest('hex');
+  
+  this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  
+  return verificationToken;
+};
+
+
+
+userSchema.statics.findByEmail = function(email) {
+  return this.findOne({ email: email.toLowerCase() });
+};
+
+
+// Find user by password reset token
+userSchema.statics.findByPasswordResetToken = function(token) {
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  return this.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() }
+  });
+};
+
+// Find user by email verification token
+userSchema.statics.findByEmailVerificationToken = function(token) {
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  return this.findOne({
+    emailVerificationToken: hashedToken,
+    emailVerificationExpires: { $gt: Date.now() }
+  });
+};
 
 export default mongoose.model('User', userSchema);

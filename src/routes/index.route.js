@@ -1,5 +1,10 @@
 import express from "express"
+import authRoutes from "./auth.route.js"
+import { apiLimiter } from "../config/security.js";
+
 const router = express.Router();
+
+router.use(apiLimiter)
 
 const VERSION = process.env.APP_VERSION ?? process.env.npm_package_version ?? '1.0.0';
 const ENV = process.env.NODE_ENV ?? 'development';
@@ -35,7 +40,12 @@ router.get('/info', (req, res) => {
 });
 
 // Route mounting
-//router.use('/auth', authRoutes);
+router.use('/auth', authRoutes);
+router.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `${req.originalUrl} endpoint not found`
+  });
+});
 
- 
 export default router;

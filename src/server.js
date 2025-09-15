@@ -4,16 +4,47 @@ import express from "express"
 import connectDB from "./config/database.js";
 import router from "./routes/index.route.js";
 
+import cookieParser from "cookie-parser";
+import session from "express-session";
+import MongoStore from "connect-mongo";
+
+
+import { applySecurity } from "./middlewares/security.middleware.js";
+import { generalLimiter } from "./config/security.js";
 //Express app
+
 const app = express();
 
-//Database connection 
-//connectDB();
- 
-//middlewares 
-app.disable('x-powered-by');
-app.use(express.json({ limit: '10mb' }));
+// Apply security middleware
+applySecurity(app);
 
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Cookie parser
+app.use(cookieParser());
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || "your-session-secret",
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI,
+    touchAfter: 24 * 3600 // lazy session update
+  }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'strict'
+  },
+  name: 'sessionId' // Change default session name
+}));
+
+// Rate limiting
+app.use(generalLimiter);
 
 //Routes
 
