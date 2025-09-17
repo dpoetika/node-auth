@@ -167,9 +167,9 @@ userSchema.methods.incLoginAttempts = function() {
   const updates = { $inc: { loginAttempts: 1 } };
   const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5;
   const lockTime = parseInt(process.env.LOCKOUT_TIME) * 60 * 1000 || 30 * 60 * 1000; // 30 dakika
-  
-  // Maksimum deneme sayısına ulaşıldıysa hesabı kilitle
-  if (this.loginAttempts + 1 >= maxAttempts && !this.isLocked) {
+  // Lock user if attempt count reach max attempts
+  if (this.loginAttempts + 1 >= maxAttempts && !this.lockUntil) {
+
     updates.$set = { lockUntil: Date.now() + lockTime };
   }
   
