@@ -3,6 +3,9 @@
   "description": "Secure Node.js authentication API",
   "version": "1.0.0",
   "main": "index.js",
+  "engines": {
+    "node": ">=18.18"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
@@ -33,5 +36,6 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.0",
     "xss": "^1.0.15"
+
   }
 }

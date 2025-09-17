@@ -1,6 +1,8 @@
 import express from "express"
 import authRoutes from "./auth.route.js"
+
 import { apiLimiter } from "../config/security.js";
+
 
 const router = express.Router();
 
