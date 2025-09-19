@@ -8,33 +8,21 @@ import hpp from 'hpp';
 import compression from 'compression';
 
 // XSS preventing middleware
-const xssClean = (req, res, next) => {
-    if (req.body) {
-        Object.keys(req.body).forEach(key => {
-            if (typeof req.body[key] === 'string') {
-                req.body[key] = xss(req.body[key]);
-            }
-        });
+const xssClean = (req, _res, next) => {
+  const clean = (v) => {
+    if (typeof v === 'string') return xss(v);
+    if (Array.isArray(v)) return v.map(clean);
+    if (v && typeof v === 'object') {
+      for (const k of Object.keys(v)) v[k] = clean(v[k]);
     }
-
-    if (req.query) {
-        Object.keys(req.query).forEach(key => {
-            if (typeof req.query[key] === 'string') {
-                req.query[key] = xss(req.query[key]);
-            }
-        });
-    }
-
-    if (req.params) {
-        Object.keys(req.params).forEach(key => {
-            if (typeof req.params[key] === 'string') {
-                req.params[key] = xss(req.params[key]);
-            }
-        });
-    }
-
-    next();
+    return v;
+  };
+  if (req.body) req.body = clean(req.body);
+  if (req.query) req.query = clean(req.query);
+  if (req.params) req.params = clean(req.params);
+  next();
 };
+
 
 // CORS config
 const corsOptions = {
@@ -84,32 +72,14 @@ const helmetOptions = {
 };
 
 // get ip address middleware
-const getClientIP = (req, res, next) => {
-    req.clientIP = req.headers['x-forwarded-for'] ||
-        req.headers['x-real-ip'] ||
-        req.connection.remoteAddress ||
-        req.socket.remoteAddress ||
-        (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
-        req.ip;
-    next();
+const getClientIP = (req, _res, next) => {
+  req.clientIP = req.headers['x-real-ip'] || req.ip;
+  next();
 };
 
-// Request size limitation
-const requestSizeLimit = (limit = '10mb') => {
-    return (req, res, next) => {
-        const contentLength = parseInt(req.headers['content-length']);
-        const maxSize = parseInt(limit.replace(/[^\d]/g, '')) * (limit.includes('mb') ? 1024 * 1024 : 1024);
 
-        if (contentLength && contentLength > maxSize) {
-            return res.status(413).json({
-                success: false,
-                error: 'Request size is too large'
-            });
-        }
-
-        next();
-    };
-};
+// Prefer express.json()/urlencoded({ limit }) in server.js for robust enforcement.
+const requestSizeLimit = (_limit = '10mb') => (_req, _res, next) => next();
 
 
 // MongoDB injection 
@@ -139,7 +109,7 @@ export const applySecurity = (app) => {
     app.use(compression());
 
     // Trust proxy
-    app.set('trust proxy', 1);
+    app.set('trust proxy', process.env.TRUST_PROXY ?? 1);
 
 
     // Client IP

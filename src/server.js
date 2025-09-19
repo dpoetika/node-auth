@@ -13,10 +13,13 @@ import { applySecurity } from "./middlewares/security.middleware.js";
 import { generalLimiter } from "./config/security.js";
 //Express app
 
-const app = express();
+const app = express(); 
 
 // Apply security middleware
 applySecurity(app);
+
+// Rate limiting (run early)
+app.use(generalLimiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -43,11 +46,10 @@ app.use(session({
   name: 'sessionId' // Change default session name
 }));
 
-// Rate limiting
-app.use(generalLimiter);
+
 
 //Routes
-
+ 
 // Root endpoint
 app.get('/', (req, res) => {
   res.status(200).json({

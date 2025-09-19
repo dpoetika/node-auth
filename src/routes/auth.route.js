@@ -12,18 +12,17 @@ import { authenticate } from "../middlewares/auth.middleware.js";
 
 import { authLimiter } from "../config/security.js";
 
-// Disable rate limiting in test environment
-
-
 const authRoutes = express.Router();
 
-authRoutes.use(authLimiter)
+// Disable rate limiting in test environment
+if (!process.env.NODE_ENV||process.env.NODE_ENV !== 'test') {
+  authRoutes.use(authLimiter);
+}
 
 
 // Public routes
 authRoutes.post('/register',
   register
-
 );
 
 authRoutes.post('/login',
@@ -38,7 +37,7 @@ authRoutes.put('/reset-password/:token',
   resetPassword
 );
 
-authRoutes.get('/verify-email/:token',
+authRoutes.post('/verify-email/:token',
   verifyEmail
 );
 

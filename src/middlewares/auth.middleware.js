@@ -1,14 +1,21 @@
 import jwt from "jsonwebtoken"
 import User from "../models/User.js";
 
+if (!process.env.JWT_SECRET) {
+  console.warn('JWT_SECRET is not set; tokens cannot be verified.');
+}
+
 export const authenticate = async (req, res, next) => {
   try {
     let token;
 
     // Get token from header
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    const authHeader = req.headers.authorization || '';
+    const [scheme, value] = authHeader.split(' ');
+    if (scheme && /^bearer$/i.test(scheme) && value) {
+      token = value;
     }
+
     // from cookies
     else if (req.cookies && req.cookies.token) {
       token = req.cookies.token;

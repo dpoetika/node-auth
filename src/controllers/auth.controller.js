@@ -4,7 +4,7 @@ const sendTokenResponse = (user, statusCode, res) => {
   const token = user.generateAuthToken();
   const options = { 
     expires: new Date(
-      Date.now() + (parseInt(process.env.JWT_COOKIE_EXPIRE) || 7) * 24 * 60 * 60 * 1000
+      Date.now() + (parseInt(process.env.JWT_EXPIRE) || 7) * 24 * 60 * 60 * 1000
     ),
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -38,8 +38,11 @@ const sendTokenResponse = (user, statusCode, res) => {
 export const register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    const normalizedName = (name || '').trim();
+
     
-    if (!name || !email || !password) {
+    if (!normalizedName || !normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
         error: 'Please provide name, email, password.'
@@ -47,18 +50,18 @@ export const register = async (req, res) => {
     }
     
     // Check if user exist
-    const existingUser = await User.findByEmail(email);
+    const existingUser = await User.findByEmail(normalizedEmail);
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        error: 'This email is in using'
+        error: 'This email is in use'
       });
     }
 
     // Create new user
     const user = await User.create({
-      name,
-      email,
+      normalizedName,
+      normalizedEmail,
       password,
       role: role || 'user'
     });
@@ -250,10 +253,18 @@ export const getMe = async (req, res) => {
 // @route   POST /api/auth/logout
 // @access  Private
 export const logout = (req, res) => {
+   // Clear JWT cookie
   res.cookie('token', 'none', {
     expires: new Date(Date.now() + 10 * 1000),
-    httpOnly: true
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production'
   });
+
+  // Destroy session if present
+  if (req.session) {
+    req.session.destroy(() => {});
+  }
 
   console.log(`User logged out: ${req.user.email}`, {
     userId: req.user._id,
@@ -265,6 +276,7 @@ export const logout = (req, res) => {
     message: 'Logged out successfully'
   });
 };
+
 
 // @desc    Password Reset request
 // @route   POST /api/auth/forgot-password

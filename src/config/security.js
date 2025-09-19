@@ -4,26 +4,23 @@ export const createRateLimit = (windowMs = 15 * 60 * 1000, max = 100, message = 
   return rateLimit({
     windowMs,
     max,
-    message: {
-      error: message,
-      retryAfter: Math.ceil(windowMs / 1000)
-    },
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
-      res.status(429).json({
-        success: false,
-        error: message,
-        retryAfter: Math.ceil(windowMs / 1000)
-      });
+      const reset = req.rateLimit?.resetTime;
+      const msLeft = reset instanceof Date ? (reset.getTime() - Date.now()) : (typeof reset === 'number' ? (reset - Date.now()) : windowMs);
+      const retryAfter = Math.max(1, Math.ceil(msLeft / 1000));
+      res.set('Retry-After', String(retryAfter));
+      res.status(429).json({ success: false, error: message, retryAfter });
     }
+
   });
 };
 
 // general rate limiting
 export const generalLimiter = createRateLimit(
-  parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100 // 100 request
+  Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100 // 100 request
 );
 
 // rate limit for Auth endpoint

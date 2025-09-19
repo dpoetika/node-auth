@@ -6,7 +6,6 @@ import { apiLimiter } from "../config/security.js";
 
 const router = express.Router();
 
-router.use(apiLimiter)
 
 const VERSION = process.env.APP_VERSION ?? process.env.npm_package_version ?? '1.0.0';
 const ENV = process.env.NODE_ENV ?? 'development';
@@ -40,6 +39,8 @@ router.get('/info', (req, res) => {
     }
   });
 });
+
+router.use(apiLimiter)
 
 // Route mounting
 router.use('/auth', authRoutes);

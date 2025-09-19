@@ -231,9 +231,11 @@ userSchema.methods.generateEmailVerificationToken = function() {
 
 
 
-userSchema.statics.findByEmail = function(email) {
-  return this.findOne({ email: email.toLowerCase() });
+userSchema.statics.findByEmail = function(email, { includePassword = false } = {}) {
+  const q = this.findOne({ email: email.toLowerCase() });
+  return includePassword ? q.select('+password') : q;
 };
+
 
 
 // Find user by password reset token
